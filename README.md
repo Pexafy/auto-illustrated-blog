@@ -1,36 +1,47 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Auto-Illustrated Blog
 
-## Getting Started
+Give a topic. The [AI SDK](https://ai-sdk.dev) writes a blog post and illustrates every section
+with a real, free stock photo found by [Pexafy](https://pexafy.com), with its alt text and credit
+line.
 
-First, run the development server:
+![Auto-Illustrated Blog](app/opengraph-image.png)
+
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2FPexafy%2Fauto-illustrated-blog&env=PEXAFY_API_KEY,ANTHROPIC_API_KEY&envDescription=A%20free%20Pexafy%20API%20key%20and%20an%20Anthropic%20API%20key&envLink=https%3A%2F%2Fpexafy.com%2Fdashboard%2Fapi-keys%2Fcreate%2F&project-name=auto-illustrated-blog&repository-name=auto-illustrated-blog)
+
+## How it works
+
+[`app/api/write/route.ts`](app/api/write/route.ts) streams the post with `streamText`. The model
+gets one tool, `searchPhotos` from [`pexafy-ai-sdk`](https://www.npmjs.com/package/pexafy-ai-sdk):
+
+1. It searches a header photo and one photo per section, each described as a visible scene.
+2. It writes the post in Markdown and inserts each photo with the `url`, `alt_text` and `credit`
+   the tool returned.
+
+The page renders the Markdown as it streams. Photos come from Unsplash, Pexels, Pixabay and other
+free libraries.
+
+## Run it locally
+
+Requires Node.js 22 or later.
 
 ```bash
+cp .env.example .env.local   # then fill in both keys
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+| Variable | Where to get it |
+|---|---|
+| `PEXAFY_API_KEY` | Free, no card: [pexafy.com/dashboard/api-keys/create](https://pexafy.com/dashboard/api-keys/create/) |
+| `ANTHROPIC_API_KEY` | [console.anthropic.com](https://console.anthropic.com/) |
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+The example uses Claude Haiku 4.5. Any AI SDK provider works: change the `model` line in the route.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Credits
 
-## Learn More
+On Pexafy's free plan, keep the credit line next to each photo you publish. The post already
+places it under every photo.
 
-To learn more about Next.js, take a look at the following resources:
+## License
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+MIT
