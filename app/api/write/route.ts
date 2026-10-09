@@ -1,8 +1,12 @@
-import { anthropic } from "@ai-sdk/anthropic";
 import { stepCountIs, streamText } from "ai";
 import { searchPhotos } from "pexafy-ai-sdk";
 
+import { writerModel } from "@/lib/model";
+
 export const maxDuration = 60;
+
+// A model that searches one photo per step needs six: five searches, then the post.
+const MAX_STEPS = 8;
 
 const SYSTEM = `You write short blog posts illustrated with real, free stock photos.
 
@@ -24,12 +28,22 @@ export async function POST(request: Request) {
     return Response.json({ error: "Give the post a topic." }, { status: 400 });
   }
 
+  let model;
+  try {
+    model = writerModel();
+  } catch (error) {
+    // An unknown provider in MODEL: say so instead of failing mid-stream.
+    return Response.json({ error: error instanceof Error ? error.message : String(error) }, { status: 500 });
+  }
+
   const result = streamText({
-    model: anthropic("claude-haiku-4-5"),
+    model,
     system: SYSTEM,
     prompt: `Topic: ${topic}`,
     tools: { searchPhotos: searchPhotos({ maxResults: 3 }) },
-    stopWhen: stepCountIs(5),
+    stopWhen: stepCountIs(MAX_STEPS),
+    // The last step writes: no search is offered there, so the post always gets written.
+    prepareStep: ({ stepNumber }) => (stepNumber === MAX_STEPS - 1 ? { toolChoice: "none" } : undefined),
     maxOutputTokens: 3000,
   });
 
@@ -61,10 +75,17 @@ export async function POST(request: Request) {
             }
           }
         }
-        if (!started) send(searched ? pending : held);
+        if (!started) {
+          const rest = searched ? pending : held;
+          if (!rest) throw new Error("The model wrote nothing. Try again, or try a larger model.");
+          send(rest);
+        }
         controller.close();
       } catch (error) {
-        controller.error(error);
+        // Said in the post itself, where the reader looks, rather than as a broken stream.
+        const message = error instanceof Error ? error.message : String(error);
+        send(`\n\n> **The post could not be written.** ${message}\n`);
+        controller.close();
       }
     },
   });
