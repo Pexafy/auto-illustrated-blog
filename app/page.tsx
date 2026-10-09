@@ -14,9 +14,9 @@ export default function Home() {
   const { completion, input, setInput, handleInputChange, handleSubmit, complete, isLoading, error } =
     useCompletion({ api: "/api/write", streamProtocol: "text" });
 
-  // The post starts at its title; anything the model says before it is not part of the post.
-  const titleAt = completion.indexOf("# ");
-  const post = titleAt >= 0 ? completion.slice(titleAt) : "";
+  // The post starts at its title line, if the model wrote anything before it.
+  const titleAt = completion.search(/^# /m);
+  const post = titleAt > 0 ? completion.slice(titleAt) : completion;
 
   return (
     <main className="mx-auto w-full max-w-3xl px-4 py-12 sm:py-16">

@@ -33,5 +33,41 @@ export async function POST(request: Request) {
     maxOutputTokens: 3000,
   });
 
-  return result.toTextStreamResponse();
+  // The post starts at its title line. Anything before it is the model talking about its
+  // plan or its searches, so it is held back; it is sent only if no title ever comes.
+  const encoder = new TextEncoder();
+  const body = new ReadableStream<Uint8Array>({
+    async start(controller) {
+      const send = (text: string) => controller.enqueue(encoder.encode(text));
+      let searched = false;
+      let started = false;
+      let held = "";
+      let pending = "";
+      try {
+        for await (const part of result.fullStream) {
+          if (part.type === "error") throw part.error;
+          if (part.type === "tool-result") searched = true;
+          if (part.type !== "text-delta") continue;
+          if (!searched) {
+            held += part.text;
+          } else if (started) {
+            send(part.text);
+          } else {
+            pending += part.text;
+            const at = pending.search(/(?:^|\n)# /);
+            if (at >= 0) {
+              started = true;
+              send(pending.slice(pending[at] === "\n" ? at + 1 : at));
+            }
+          }
+        }
+        if (!started) send(searched ? pending : held);
+        controller.close();
+      } catch (error) {
+        controller.error(error);
+      }
+    },
+  });
+
+  return new Response(body, { headers: { "Content-Type": "text/plain; charset=utf-8" } });
 }
