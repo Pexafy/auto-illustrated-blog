@@ -53,6 +53,16 @@ A local model needs to call tools and to write a long answer: `qwen3:8b` on Olla
 two minutes on a laptop GPU), smaller models can run out of tokens while thinking. Another
 provider: add it to the registry in [`lib/model.ts`](lib/model.ts).
 
+## Host it yourself
+
+```bash
+docker build -t auto-illustrated-blog .
+docker run -p 3000:3000 --env-file .env.local auto-illustrated-blog
+```
+
+`--build-arg BASE_PATH=/blog` serves it under a path. For a public demo, `RATE_LIMIT_PER_HOUR`
+caps posts per visitor and `DAILY_LIMIT` caps posts per day.
+
 ## Credits
 
 On Pexafy's free plan, keep the credit line next to each photo you publish. The post already

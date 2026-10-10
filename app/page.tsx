@@ -12,7 +12,7 @@ const EXAMPLES = [
 
 export default function Home() {
   const { completion, input, setInput, handleInputChange, handleSubmit, complete, isLoading, error } =
-    useCompletion({ api: "/api/write", streamProtocol: "text" });
+    useCompletion({ api: `${process.env.NEXT_PUBLIC_BASE_PATH}/api/write`, streamProtocol: "text" });
 
   // The post starts at its title line, if the model wrote anything before it.
   const titleAt = completion.search(/^# /m);

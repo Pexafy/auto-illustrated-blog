@@ -21,12 +21,46 @@ const SYSTEM = `You write short blog posts illustrated with real, free stock pho
      its credit on the next line in italics: *credit*.
    - Use only photos the tool returned. Never write a URL yourself.`;
 
+// Optional caps for a public demo: posts per visitor per hour, and posts per day in all.
+// Unset, there is no cap. Counted in memory, so they hold for one server process.
+const PER_HOUR = Number(process.env.RATE_LIMIT_PER_HOUR) || 0;
+const PER_DAY = Number(process.env.DAILY_LIMIT) || 0;
+const visits = new Map<string, number[]>();
+let day = "";
+let today = 0;
+
+function limitReached(request: Request): string | null {
+  if (PER_DAY) {
+    const date = new Date().toISOString().slice(0, 10);
+    if (date !== day) {
+      day = date;
+      today = 0;
+    }
+    if (today >= PER_DAY) return "The demo has written all its posts for today. Come back tomorrow, or run it yourself.";
+  }
+  if (PER_HOUR) {
+    const ip =
+      request.headers.get("cf-connecting-ip") ??
+      request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
+      "unknown";
+    const now = Date.now();
+    const recent = (visits.get(ip) ?? []).filter((at) => now - at < 3_600_000);
+    if (recent.length >= PER_HOUR) return "You have reached this demo's hourly limit. Try again later, or run it yourself.";
+    visits.set(ip, [...recent, now]);
+  }
+  today += 1;
+  return null;
+}
+
 export async function POST(request: Request) {
   const { prompt } = (await request.json()) as { prompt?: unknown };
   const topic = typeof prompt === "string" ? prompt.trim().slice(0, 120) : "";
   if (!topic) {
     return Response.json({ error: "Give the post a topic." }, { status: 400 });
   }
+
+  const limited = limitReached(request);
+  if (limited) return new Response(limited, { status: 429 });
 
   let model;
   try {
